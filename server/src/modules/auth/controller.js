@@ -12,13 +12,13 @@ import {
   forgotPasswordRequest, 
   resetUserPassword,
   resendUserOTP,
-  verifyGoogleToken
+  verifyGoogleToken,
+  buildAuthToken   // ✅ IMPORT ADDED
 } from "./service.js";
 
 import asyncHandler from "../../utils/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import User from "../../database/models/User.js";
-import jwt from "jsonwebtoken";
 
 
 // 📝 Register User
@@ -48,7 +48,11 @@ export const verifyEmail = asyncHandler(async (req, res, next) => {
     return next(new AppError("Invalid verification data", 400));
   }
 
-  const result = await verifyUserEmail(validation.data.email, validation.data.otp);
+  const result = await verifyUserEmail(
+    validation.data.email, 
+    validation.data.otp
+  );
+
   return res.status(200).json(result);
 });
 
@@ -97,7 +101,7 @@ export const resendOTP = asyncHandler(async (req, res, next) => {
 });
 
 
-// 🔐 Google Login (YOUR FEATURE)
+// 🔐 Google Login (FIXED)
 export const googleLogin = asyncHandler(async (req, res, next) => {
   const { token } = req.body;
 
@@ -119,20 +123,13 @@ export const googleLogin = asyncHandler(async (req, res, next) => {
       profilePic: googleUser.picture,
       role: "student",
       provider: "google",
+      password: null,        // ✅ IMPORTANT FIX
+      isVerified: true       // ✅ Google users auto verified
     });
   }
 
-  // 🔐 Generate JWT
-  const jwtToken = jwt.sign(
-    {
-      userId: user._id.toString(),
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    }
-  );
+  // ✅ FIX: Use service function (NO DUPLICATION)
+  const jwtToken = buildAuthToken(user);
 
   return res.status(200).json({
     success: true,
